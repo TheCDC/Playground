@@ -80,6 +80,7 @@ def worker(n, batch_size, inqueue, outqueue):
 
         if p is None:
             # print("quitting")
+            outqueue.put(None)
             return
         internal_queue.append(p)
         # ========== Batches ==========
@@ -123,11 +124,15 @@ def generate_solutions_multiprocessed(n=8, num_processes=8, batch_size=1000):
                 target=worker,
                 args=(n, batch_size, partials_queue, solutions_queue))
             workers.append(w)
+        found_exits = 0
         for w in workers:
             w.start()
-        for w in workers:
-            w.join()
-        while not solutions_queue.empty():
+        while found_exits < num_workers:
+            # print(test)
             s = solutions_queue.get()
-            if s is not None:
+            if s is None:
+                found_exits += 1
+            else:
                 yield s
+        # for w in workers:
+        #     w.join()
