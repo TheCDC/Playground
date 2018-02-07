@@ -1,0 +1,18 @@
+For assigning an arcane school to each rune here's the guide I came up with:
+Abjuration
+	protection
+Conjuration
+	Creation from nothing
+Divination
+	knowledge
+Enchantment
+	This one was tough. I took it to mean 'binding things together'
+Evocation
+	Releasing a latent power or energy
+Illusion
+	Imagery
+Necromancy
+	This is also tough. I think it's rarity could be explained by the flavor of the runic magic being more primal, more closely connected to the original magic.
+	I went ahead and added it to any rune with 'polarity' to line up with the idea of UNlife.
+Transmutation
+	Something becoming something else.

@@ -1,4 +1,10 @@
 import multiprocessing
+import os
+from enum import Enum
+
+
+class Sentinel(Enum):
+    STACK_END = 0
 
 
 def generate_next_partials(partial=None, n=8):
@@ -30,6 +36,10 @@ def is_valid(l):
 
 
 def check_newest(psol):
+    """A fast partial solution checker.
+    It's O(n) because it assumes that only the newly placed
+    piece could possibly be in error.
+    """
     y = len(psol) - 1
     x = psol[y]
     for y2 in range(y):
@@ -78,61 +88,61 @@ def worker(n, batch_size, inqueue, outqueue):
 
         p = inqueue.pop()
 
-        if p is None:
+        if p is Sentinel.STACK_END:
             # print("quitting")
-            outqueue.put(None)
+            outqueue.put(Sentinel.STACK_END)
             return
         internal_queue.append(p)
         # ========== Batches ==========
         # perform a batch of iterations before returning results
         # to the main queue
+        # a larger batch size leads to greater memory usage
         for _ in range(batch_size):
             if len(internal_queue) == 0:
                 # print("break")
                 break
+            # apply the backtracking algo
             sub_partial = internal_queue.pop()
             if is_final(sub_partial, n):
-                # print("found", sub_partial)
                 outqueue.put(sub_partial)
-                # print(p)
             else:
                 for next_partial in generate_next_partials(sub_partial, n):
-                    # print("put into queue:", x)
                     internal_queue.append(next_partial)
 
-        for _ in range(len(internal_queue)):
+        while len(internal_queue) > 0:
             x = internal_queue.pop()
             inqueue.append(x)
-        internal_queue = list()
 
 
-def generate_solutions_multiprocessed(n=8, num_processes=8, batch_size=1000):
+def generate_solutions_multiprocessed(n=8, num_processes=os.cpu_count(), batch_size=1000):
     num_workers = num_processes
+    # instantiate a manager to manage a list
+    # a list is necessary in order to have a LIFO queue
     with multiprocessing.Manager() as manager:
 
         partials_queue = manager.list()
         solutions_queue = manager.Queue()
         # prefill
         for _ in range(num_workers):
-            partials_queue.append(None)
+            partials_queue.append(Sentinel.STACK_END)
         for x in generate_next_partials([], n):
-            # print("filled in:", x)
             partials_queue.append(x)
+        # spawn and start workers
         workers = []
         for _ in range(num_workers):
             w = multiprocessing.Process(
                 target=worker,
                 args=(n, batch_size, partials_queue, solutions_queue))
             workers.append(w)
-        found_exits = 0
         for w in workers:
             w.start()
-        while found_exits < num_workers:
-            # print(test)
+        # yield from the queue until all worker have exited
+        found_exit_codes = 0
+        while found_exit_codes < num_workers:
             s = solutions_queue.get()
-            if s is None:
-                found_exits += 1
+            if s is Sentinel.STACK_END:
+                found_exit_codes += 1
             else:
                 yield s
-        # for w in workers:
-        #     w.join()
+        for w in workers:
+            w.join()
