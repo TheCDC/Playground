@@ -12,16 +12,15 @@ face_cascade = cv2.CascadeClassifier(
 eye_cascade = cv2.CascadeClassifier(
     os.path.join('cascades', 'haarcascade_eye.xml'))
 
-cap = cv2.VideoCapture(-1)
+cap = cv2.VideoCapture(1)
 
 while 1:
     ret, img = cap.read()
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-
+    faces = list(face_cascade.detectMultiScale(gray, 1.3, 5))
+    face_images = []
     for index, (x, y, w, h) in enumerate(faces):
-        face_image = img[y:y + h, x:x + w]
-        cv2.imshow(f'face {index}', face_image)
+        face_images.append(cv2.resize(img[y:y + h, x:x + w], (100, 100)))
         cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
         roi_gray = gray[y:y + h, x:x + w]
         roi_color = img[y:y + h, x:x + w]
@@ -30,6 +29,17 @@ while 1:
         for (ex, ey, ew, eh) in eyes:
             cv2.rectangle(roi_color, (ex, ey), (ex + ew, ey + eh), (0, 255, 0),
                           2)
+
+    for index, face in enumerate(face_images):
+        cv2.imshow(f'face {index}', face)
+        ii = index - 1
+        if index % 2 == 0:
+            ii = index + 1
+        try:
+            x, y, w, h = faces[ii]
+            img[y:y + h, x:x + w] = cv2.resize(face, (w, h))
+        except IndexError:
+            pass
 
     cv2.imshow('img', img)
     k = cv2.waitKey(30) & 0xff
