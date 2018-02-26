@@ -18,8 +18,8 @@ class Rune:
         return Rune(
             row[0],
             row[1],
-            [x.strip() for x in row[2].split(',')],
-            [x.strip() for x in row[3].split(',')]
+            [x.strip() for x in row[2].split(',') if len(x) > 0],
+            [x.strip() for x in row[3].split(',') if len(x) > 0]
         )
 
     def __repr__(self):
@@ -42,7 +42,9 @@ with open('runes.csv') as f:
     rows = list(csv.reader(f, delimiter='|'))
 
 runes = [Rune.from_row(r) for r in rows]
-
+for r in runes:
+    print(r)
+    print()
 runic_vowels = {w[0] for w in rows if w[0][0].lower() in english_vowels}
 runic_consonants = {w[0]
                     for w in rows if w[0][0].lower() in english_consonants}
