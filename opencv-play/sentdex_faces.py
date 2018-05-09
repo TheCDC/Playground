@@ -36,10 +36,12 @@ class FaceFinder:
             os.path.join(parent_dir, 'cascades', 'haarcascade_eye.xml'))
 
     def find_faces(self, image):
-        faces = list(self.face_cascade.detectMultiScale(th, 1.3, 3))
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+        faces = list(self.face_cascade.detectMultiScale(gray, 1.3, 3))
         face_images = []
-        for index, (x, y, w, h) in enumerate(faces):
-            face_images.append(webcam_img[y:y + h, x:x + w].copy())
+        for (x, y, w, h) in faces:
+            face_images.append(image[y:y + h, x:x + w].copy())
         return face_images
 
 
@@ -57,16 +59,7 @@ frame_index = 0
 while 1:
 
     ret, webcam_img = webcam_stream.read()
-    # if any(d > 700 for d in webcam_img.shape):
-    #     webcam_img = cv2.resize(webcam_img, (0, 0), fx=0.5, fy=0.5)
-    # if video_file is not None:
-    #     ret, video_img = video_file.read()
-    gray = cv2.cvtColor(webcam_img, cv2.COLOR_BGR2GRAY)
-    # th = cv2.UMat(
-    #     cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-    #                           cv2.THRESH_BINARY, 115, 1))
-    th = gray
-    face_images = facefinder.find_faces(th)
+    face_images = facefinder.find_faces(webcam_img)
     if len(face_images) > 1:
         all_faces_img = np.concatenate(
             tuple(cv2.resize(im, (100, 100)) for im in face_images), axis=1)
