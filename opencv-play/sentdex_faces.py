@@ -2,44 +2,97 @@
 import numpy as np
 import cv2
 import os
+import sys
+import enum
+import argparse
 
-# multiple cascades: https://github.com/Itseez/opencv/tree/master/data/haarcascades
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    '-v', '--video-file', type=str, default=None, help='Choose a video file.')
+parser.add_argument(
+    '-c', '--camera', type=int, default=-1, help='Choose index of webcam.')
+parser.add_argument(
+    '-m',
+    '--mode',
+    type=str,
+    default='swap',
+    help=
+    'Choose algorithm from "swap" and "insert". Insert requires webcam and video file.'
+)
+args = parser.parse_args()
 
-#https://github.com/Itseez/opencv/blob/master/data/haarcascades/haarcascade_frontalface_default.xml
-face_cascade = cv2.CascadeClassifier(
-    os.path.join('cascades', 'haarcascade_frontalface_default.xml'))
-#https://github.com/Itseez/opencv/blob/master/data/haarcascades/haarcascade_eye.xml
-eye_cascade = cv2.CascadeClassifier(
-    os.path.join('cascades', 'haarcascade_eye.xml'))
 
-cap = cv2.VideoCapture(1)
+class FaceFinder:
+    def __init__(self):
+        # multiple cascades:
+        # https://github.com/Itseez/opencv/tree/master/data/haarcascades
+        parent_dir = os.path.abspath(os.path.dirname(__file__))
+        # https://github.com/Itseez/opencv/blob/master/data/haarcascades/haarcascade_frontalface_default.xml
+        self.face_cascade = cv2.CascadeClassifier(
+            os.path.join(parent_dir, 'cascades',
+                         'haarcascade_frontalface_default.xml'))
+        # https://github.com/Itseez/opencv/blob/master/data/haarcascades/haarcascade_eye.xml
+        self.eye_cascade = cv2.CascadeClassifier(
+            os.path.join(parent_dir, 'cascades', 'haarcascade_eye.xml'))
 
+    def find_faces(self, image):
+        faces = list(self.face_cascade.detectMultiScale(th, 1.3, 3))
+        face_images = []
+        for index, (x, y, w, h) in enumerate(faces):
+            face_images.append(webcam_img[y:y + h, x:x + w].copy())
+        return face_images
+
+
+facefinder = FaceFinder()
+capture_type = None
+if args.video_file:
+    webcam_stream = cv2.VideoCapture(args.video_file)
+    # print(f'Video FPS: {cap.get(cv2.CV_CAP_PROP_FPS)}')
+else:
+    webcam_stream = cv2.VideoCapture(args.camera)
+
+# webcam_stream = cv2.VideoCapture(0)
+all_faces_img = None
+frame_index = 0
 while 1:
-    ret, img = cap.read()
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    faces = list(face_cascade.detectMultiScale(gray, 1.3, 5))
-    face_images = []
-    for index, (x, y, w, h) in enumerate(faces):
-        face_images.append(img[y:y + h, x:x + w].copy())
-        cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
-        roi_gray = gray[y:y + h, x:x + w]
-        roi_color = img[y:y + h, x:x + w]
 
-        eyes = eye_cascade.detectMultiScale(roi_gray)
-        for (ex, ey, ew, eh) in eyes:
-            cv2.rectangle(roi_color, (ex, ey), (ex + ew, ey + eh), (0, 255, 0),
-                          2)
+    ret, webcam_img = webcam_stream.read()
+    # if any(d > 700 for d in webcam_img.shape):
+    #     webcam_img = cv2.resize(webcam_img, (0, 0), fx=0.5, fy=0.5)
+    # if video_file is not None:
+    #     ret, video_img = video_file.read()
+    gray = cv2.cvtColor(webcam_img, cv2.COLOR_BGR2GRAY)
+    # th = cv2.UMat(
+    #     cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+    #                           cv2.THRESH_BINARY, 115, 1))
+    th = gray
+    face_images = facefinder.find_faces(th)
+    if len(face_images) > 1:
+        all_faces_img = np.concatenate(
+            tuple(cv2.resize(im, (100, 100)) for im in face_images), axis=1)
+    elif len(face_images) > 0:
+        all_faces_img = cv2.resize(face_images[0], (100, 100))
+    # swap faces around
     if len(face_images) > 1:
         for index, face in enumerate(face_images):
-            cv2.imshow(f'face {index}', face)
             ii = (index + 1) % len(face_images)
             x, y, w, h = faces[ii]
-            img[y:y + h, x:x + w] = cv2.resize(face, (w, h))
+            webcam_img[y:y + h, x:x + w] = cv2.resize(face, (w, h))
 
-    cv2.imshow('img', img)
+    cv2.imshow('webcam_img', webcam_img)
+    if all_faces_img is not None:
+        cv2.imshow('all faces', all_faces_img)
     k = cv2.waitKey(30) & 0xff
+    print(k)
     if k == 27:
         break
+    elif k == 83:
+        frame_index += 100
+        webcam_stream.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
+    elif k == 81:
+        frame_index -= 100
+        webcam_stream.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
+    frame_index += 1
 
-cap.release()
+webcam_stream.release()
 cv2.destroyAllWindows()
