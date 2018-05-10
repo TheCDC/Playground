@@ -35,10 +35,13 @@ class FaceFinder:
         self.eye_cascade = cv2.CascadeClassifier(
             os.path.join(parent_dir, 'cascades', 'haarcascade_eye.xml'))
 
-    def find_faces(self, image):
+    def find_face_locations(self, image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        return list(self.face_cascade.detectMultiScale(gray, 1.3, 3))
 
-        faces = list(self.face_cascade.detectMultiScale(gray, 1.3, 3))
+    def find_face_images(self, image):
+
+        faces = self.find_face_locations(image)
         face_images = []
         for (x, y, w, h) in faces:
             face_images.append(image[y:y + h, x:x + w].copy())
@@ -59,7 +62,10 @@ frame_index = 0
 while 1:
 
     ret, webcam_img = webcam_stream.read()
-    face_images = facefinder.find_faces(webcam_img)
+    face_locations = facefinder.find_face_locations(webcam_img)
+    face_images = [
+        webcam_img[y:y + h, x:x + w].copy() for x, y, w, h in face_locations
+    ]
     if len(face_images) > 1:
         all_faces_img = np.concatenate(
             tuple(cv2.resize(im, (100, 100)) for im in face_images), axis=1)
@@ -68,8 +74,8 @@ while 1:
     # swap faces around
     if len(face_images) > 1:
         for index, face in enumerate(face_images):
-            ii = (index + 1) % len(face_images)
-            x, y, w, h = faces[ii]
+            source_face_index = (index + 1) % len(face_images)
+            x, y, w, h = face_locations[source_face_index]
             webcam_img[y:y + h, x:x + w] = cv2.resize(face, (w, h))
 
     cv2.imshow('webcam_img', webcam_img)
